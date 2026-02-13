@@ -12,7 +12,10 @@ PROMPT =====================================================
 SHOW CON_NAME;
 
 PROMPT Running create_user.sql...
-@scheduler_core/schema/create_user.sql
+@@scheduler_core/schema/create_user.sql
+
+PROMPT Running tables.sql...
+@@scheduler_core/schema/tables.sql
 
 PROMPT =====================================================
 PROMPT Scheduler Core installation completed (current stage)
