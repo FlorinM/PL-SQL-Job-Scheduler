@@ -14,6 +14,9 @@ SHOW CON_NAME;
 PROMPT Running create_user.sql...
 @@scheduler_core/schema/create_user.sql
 
+PROMPT Connecting as SCHED_SYS
+CONNECT SCHED_SYS/sched_sys_password@localhost:1521/XEPDB1
+
 PROMPT Running tables.sql...
 @@scheduler_core/schema/tables.sql
 
