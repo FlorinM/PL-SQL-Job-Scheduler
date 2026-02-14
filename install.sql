@@ -23,6 +23,9 @@ PROMPT Running tables.sql...
 PROMPT Running sequences.sql...
 @@scheduler_core/schema/sequences.sql
 
+PROMPT Running constraints_indexes.sql...
+@@scheduler_core/schema/constraints_indexes.sql
+
 PROMPT =====================================================
 PROMPT Scheduler Core installation completed (current stage)
 PROMPT =====================================================
