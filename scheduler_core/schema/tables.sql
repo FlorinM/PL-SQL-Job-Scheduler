@@ -9,7 +9,7 @@ CREATE TABLE jobs (
    enabled_flag CHAR(1) NOT NULL,
    interval_seconds NUMBER NOT NULL,
    next_run_date TIMESTAMP NOT NULL,
-   created_at TIMESTAMP DEFAULT SYSDATE NOT NULL,
+   created_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
    created_by VARCHAR2(128)
 );
 
