@@ -26,6 +26,9 @@ PROMPT Running sequences.sql...
 PROMPT Running constraints_indexes.sql...
 @@scheduler_core/schema/constraints_indexes.sql
 
+PROMPT Running api_package_spec.sql...
+@@scheduler_core/api/api_package_spec.sql
+
 PROMPT =====================================================
 PROMPT Scheduler Core installation completed (current stage)
 PROMPT =====================================================
