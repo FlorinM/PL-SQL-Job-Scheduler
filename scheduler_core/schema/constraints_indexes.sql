@@ -22,3 +22,7 @@ ALTER TABLE jobs ADD CONSTRAINT ch_enabled_flag
    CHECK (enabled_flag IN ('Y', 'N'));
 ALTER TABLE job_runs ADD CONSTRAINT ch_status
    CHECK (status IN ('RUNNING', 'SUCCESS', 'FAILED', 'ABORTED'));
+ALTER TABLE jobs ADD CONSTRAINT u_procedure_name
+   UNIQUE (procedure_name);
+ALTER TABLE jobs ADD CONSTRAINT ch_interval_seconds
+   CHECK (interval_seconds > 0);
