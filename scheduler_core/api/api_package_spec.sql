@@ -25,7 +25,7 @@
  * All procedures and functions defined here represent
  * the supported integration surface of the scheduler.
  */
-create or replace package api_package_spec as
+create or replace package api_package as
 
    /**
     * Record type returned by get_job_info.

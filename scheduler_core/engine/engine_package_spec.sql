@@ -21,7 +21,7 @@
  *
  * Typically invoked by DBMS_SCHEDULER or a background worker.
  */
-create or replace package engine_package_spec as
+create or replace package engine_package as
 
    /**
     * Collection type used to return multiple job identifiers.
