@@ -32,6 +32,9 @@ PROMPT Running api_package_spec.sql...
 PROMPT Running engine_package_spec.sql...
 @@scheduler_core/engine/engine_package_spec.sql
 
+PROMPT Running api_package_body.sql...
+@@scheduler_core/api/api_package_body.sql
+
 PROMPT =====================================================
 PROMPT Scheduler Core installation completed (current stage)
 PROMPT =====================================================
