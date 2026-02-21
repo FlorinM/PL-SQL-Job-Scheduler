@@ -21,13 +21,53 @@
  */
 create or replace package body api_package as
 
+   /**
+    * Default number of retry attempts assigned to a job
+    * when the caller does not explicitly provide max_attempts
+    * during registration.
+    *
+    * This value represents the scheduler’s standard retry policy
+    * and ensures predictable behavior without requiring users
+    * to configure retry logic explicitly.
+    */
+   c_default_max_attempts constant jobs.max_attempts%type := 5;
+
+   /**
+    * Upper safety limit for retry attempts allowed per job.
+    *
+    * This constant protects the scheduler infrastructure from
+    * excessive retry configurations that could lead to retry storms,
+    * resource exhaustion, or uncontrolled execution loops.
+    *
+    * Any user-provided max_attempts value greater than this limit
+    * should be rejected at API validation level.
+    */
+   c_max_allowed_attempts constant jobs.max_attempts%type := 10;
+
    -- Public procedure defined in api_package_spec.sql
    procedure register_job(
       p_job_name in jobs.job_name%type,
       p_procedure_name in jobs.procedure_name%type,
-      p_interval_seconds in jobs.interval_seconds%type
+      p_interval_seconds in jobs.interval_seconds%type,
+      p_max_attempts in jobs.max_attempts%type
    ) is
+      v_max_attempts jobs.max_attempts%type;
    begin
+
+      if (p_max_attempts is null) then
+         v_max_attempts := c_default_max_attempts;
+      elsif p_max_attempts < 1 then
+         raise_application_error(
+            -20004, 'max_attempts must be >= 1');
+      elsif (p_max_attempts > c_max_allowed_attempts) then
+         raise_application_error(
+            -20005,
+            'max_attempts must be <= ' || c_max_allowed_attempts
+         );
+      else
+         v_max_attempts := p_max_attempts;
+      end if;
+
       insert into jobs (
          job_id,
          job_name,
@@ -35,6 +75,7 @@ create or replace package body api_package as
          enabled_flag,
          interval_seconds,
          next_run_date,
+         max_attempts,
          created_at,
          created_by
       ) values (
@@ -44,6 +85,7 @@ create or replace package body api_package as
          'Y',
          p_interval_seconds,
          systimestamp + numtodsinterval(p_interval_seconds, 'SECOND'),
+         v_max_attempts,
          systimestamp,
          sys_context('USERENV', 'SESSION_USER')
       );

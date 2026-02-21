@@ -59,7 +59,8 @@ create or replace package api_package as
    procedure register_job(
       p_job_name in jobs.job_name%type,
       p_procedure_name in jobs.procedure_name%type,
-      p_interval_seconds in jobs.interval_seconds%type
+      p_interval_seconds in jobs.interval_seconds%type,
+      p_max_attempts in jobs.max_attempts%type
    );
 
    /**

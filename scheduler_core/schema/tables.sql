@@ -9,6 +9,7 @@ CREATE TABLE jobs (
    enabled_flag CHAR(1) NOT NULL,
    interval_seconds NUMBER NOT NULL,
    next_run_date TIMESTAMP NOT NULL,
+   max_attempts NUMBER,
    created_at TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
    created_by VARCHAR2(128)
 );
@@ -16,6 +17,7 @@ CREATE TABLE jobs (
 CREATE TABLE job_runs (
    run_id NUMBER NOT NULL,
    job_id NUMBER NOT NULL,
+   scheduled_for TIMESTAMP NOT NULL,
    status VARCHAR2(20) NOT NULL,
    start_time TIMESTAMP NOT NULL,
    end_time TIMESTAMP,

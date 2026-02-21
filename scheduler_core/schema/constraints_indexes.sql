@@ -8,6 +8,9 @@ CREATE INDEX ix_job_id ON job_runs(job_id);
 
 CREATE INDEX ix_jobs_ready ON jobs(enabled_flag, next_run_date);
 CREATE INDEX ix_job_runs_job_status ON job_runs(job_id, status);
+CREATE UNIQUE INDEX uix_job_sched_attempt
+   ON job_runs(job_id, scheduled_for, attempt_number);
+
 
 ALTER TABLE jobs ADD CONSTRAINT pk_jobs
    PRIMARY KEY (job_id) USING INDEX uix_job_id;
@@ -26,3 +29,7 @@ ALTER TABLE jobs ADD CONSTRAINT u_procedure_name
    UNIQUE (procedure_name);
 ALTER TABLE jobs ADD CONSTRAINT ch_interval_seconds
    CHECK (interval_seconds > 0);
+ALTER TABLE jobs ADD CONSTRAINT ch_max_attempts
+   CHECK (max_attempts >= 1);
+ALTER TABLE job_runs ADD CONSTRAINT ch_attempt_number
+   CHECK (attempt_number >= 1);
