@@ -322,6 +322,92 @@ create or replace package body engine_package as
          );
    end;
 
+   procedure execute_business_logic is
+   begin
+      null;
+   end;
+
+   /**
+    * Marks a job execution as SUCCESS.
+    *
+    * Updates the status of the job_run identified by p_run_id to 'SUCCESS'.
+    * Ensures exactly one row is updated; otherwise, raises an application error.
+    *
+    * @param p_run_id - Identifier of the job_run to mark as SUCCESS
+    */
+   procedure mark_job_as_success(p_run_id in job_runs.run_id%type) is
+   begin
+      -- Attempt to mark the run as SUCCESS
+      update job_runs set status = 'SUCCESS', end_time = systimestamp
+      where run_id = p_run_id;
+
+      -- Validate that exactly one row is updated
+      if (sql%rowcount <> 1) then
+         raise_application_error(
+            -20011,
+            'Invariant violation: expected 1 row when marking job as SUCCESS for run_id = ' || p_run_id
+         );
+      end if;
+
+   exception
+      when others then
+         -- Any unexpected error during the update is reported
+         raise_application_error(
+            -20012,
+            'Failed to mark job run as SUCCESS for run_id = ' || p_run_id || ': ' || sqlerrm
+         );
+   end;
+
+   /**
+    * Marks a job execution run as FAILED.
+    *
+    * Constructs a detailed CLOB error message including timestamp, the given error text,
+    * and the PL/SQL backtrace, then updates the job_runs row with status, end_time, and error_message.
+    *
+    * @param p_run_id  - Identifier of the job run to mark as FAILED.
+    * @param p_error   - Error text to include in the error message.
+    *
+    * Raises an application error if:
+    *   - No row or more than one row is affected.
+    *   - Any unexpected error occurs during the update.
+    */
+   procedure mark_job_as_failed(
+      p_run_id in job_runs.run_id%type,
+      p_error in job_runs.error_message%type
+
+   ) is
+      v_clob_error clob;
+   begin
+      -- Take the full error
+      v_clob_error := 'Timestamp: ' || to_char(systimestamp, 'YYYY-MM-DD HH24:MI:SS.FF') || chr(10)
+                  || 'Error: ' || p_error || chr(10)
+                  || 'Backtrace:' || chr(10)
+                  || replace(dbms_utility.format_error_backtrace, chr(10), chr(10) || '  ');
+
+      -- Attempt to mark the run as FAILED
+      update job_runs set
+            status = 'FAILED',
+            end_time = systimestamp,
+            error_message = v_clob_error
+      where run_id = p_run_id;
+
+      -- Validate that exactly one row is updated
+      if (sql%rowcount <> 1) then
+         raise_application_error(
+            -20013,
+            'Invariant violation: expected 1 row when marking job as FAILED for run_id = ' || p_run_id
+         );
+      end if;
+
+   exception
+      when others then
+         -- Any unexpected error during the update is reported
+         raise_application_error(
+            -20014,
+            'Failed to mark job run as FAILED for run_id = ' || p_run_id || ': ' || sqlerrm
+         );
+   end;
+
    -- Public procedure defined in engine_package_spec.sql
    procedure execute_due_jobs is
       v_start_time timestamp;
@@ -381,7 +467,19 @@ create or replace package body engine_package as
          commit;
 
          -- Execute business logic (placeholder)
+         begin
+            execute_business_logic;
 
+            -- SUCCESS branch
+            mark_job_as_success(v_run_id);
+            schedule_next_execution(v_job.job_id);
+         exception
+            -- FAILED branch
+            when others then
+                mark_job_as_failed(v_run_id, sqlerrm);
+         end;
+
+         commit;
       end loop;
    end;
 
