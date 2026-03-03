@@ -287,6 +287,41 @@ create or replace package body engine_package as
          );
    end;
 
+   /**
+    * Recalculates and updates the next_run_date of a job.
+    *
+    * Typically invoked after a successful or aborted execution,
+    * based on the configured interval.
+    *
+    * @param p_job_id           - Identifier of the job.
+    */
+   procedure schedule_next_execution(
+      p_job_id in jobs.job_id%type
+   ) is
+      v_interval_seconds jobs.interval_seconds%type;
+   begin
+      select interval_seconds into v_interval_seconds
+      from jobs
+      where job_id = p_job_id;
+
+      update jobs set next_run_date = systimestamp + numtodsinterval(v_interval_seconds, 'SECOND')
+      where job_id = p_job_id;
+
+      if (sql%rowcount <> 1) then
+         raise_application_error(
+            -20010,
+            'Invariant violation: expected 1 row when updating next_run_date for job_id=' || p_job_id
+         );
+      end if;
+
+      exception
+         when no_data_found then
+            raise_application_error(
+            -20009,
+            'Job not found when calculating next_run_date. job_id=' || p_job_id
+         );
+   end;
+
    -- Public procedure defined in engine_package_spec.sql
    procedure execute_due_jobs is
       v_start_time timestamp;
@@ -321,7 +356,7 @@ create or replace package body engine_package as
             solve_stale_running_attempt(v_stale_run_id);
          end if;
 
-         -- Calculate attempt number, abort if exceeding max
+         -- Calculate attempt number, abort if exceeding max and schedule next execution
          v_current_attempt_number := calculate_current_attempt_number(v_job.job_id, v_scheduled_for);
 
          if (v_current_attempt_number > v_job.max_attempts) then
@@ -331,8 +366,10 @@ create or replace package body engine_package as
                v_current_attempt_number
             );
 
+            schedule_next_execution(v_job.job_id);
+
             commit;
-            exit;
+            continue;
          end if;
 
          -- Mark job as RUNNING and commit
@@ -366,23 +403,6 @@ create or replace package body engine_package as
       p_job_id in jobs.job_id%type,
       p_status in job_runs.status%type,
       p_error_message in job_runs.error_message%type
-   ) is
-   begin
-      null;
-   end;
-
-   /**
-    * Recalculates and updates the next_run_date of a job.
-    *
-    * Typically invoked after a successful or failed execution,
-    * based on the configured interval.
-    *
-    * p_job_id           - Identifier of the job.
-    * p_interval_seconds - Execution frequency in seconds.
-    */
-   procedure calculate_next_run_date(
-      p_job_id in jobs.job_id%type,
-      p_interval_seconds in jobs.interval_seconds%type
    ) is
    begin
       null;
