@@ -57,7 +57,7 @@ The scheduler does not access business tables directly.
 
 ## 3. High-Level Execution Flow
 
-```
+```      
 Business Schema
       │
       │ register_job(...)
@@ -70,14 +70,25 @@ jobs table
       │
       │ DBMS_SCHEDULER triggers
       ▼
-sched_engine_pkg.execute_due_jobs()
+engine_package.execute_due_jobs()
       │
-      ├─ Claim eligible jobs (FOR UPDATE SKIP LOCKED)
-      ├─ Insert RUNNING row in job_runs
-      ├─ Commit claim phase
-      ├─ Execute business procedure
-      ├─ Update run status (SUCCESS / FAILED / ABORTED)
-      └─ Recalculate next_run_date
+      ├─ Loop until worker budget_time expires:
+      │      ├─ Claim next eligible job (FOR UPDATE SKIP LOCKED)
+      │      ├─ Resolve any stale RUNNING attempt:
+      │      │      └─ Mark stale RUNNING as FAILED
+      │      ├─ Calculate attempt_number
+      │      ├─ If attempt_number > max_attempts:
+      │      │      ├─ Mark job as ABORTED
+      │      │      └─ Recalculate next_run_date
+      │      ├─ Else:
+      │      │      ├─ Insert RUNNING row in job_runs
+      │      │      └─ Commit claim phase (lock released)
+      │      ├─ Execute business procedure (execute_business_logic)
+      │      │      ├─ SUCCESS: mark RUNNING as SUCCESS + recalc next_run_date
+      │      │      └─ FAILURE: mark RUNNING as FAILED (retry possible)
+      │      └─ Commit final state for this job
+      │
+      └─ End loop when no eligible jobs or budget_time exceeded
 ```
 
 ## 4. Data Model
