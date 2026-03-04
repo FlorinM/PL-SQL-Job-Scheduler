@@ -7,9 +7,11 @@ CREATE UNIQUE INDEX uix_run_id ON job_runs(run_id);
 CREATE INDEX ix_job_id ON job_runs(job_id);
 
 CREATE INDEX ix_jobs_ready ON jobs(enabled_flag, next_run_date);
-CREATE INDEX ix_job_runs_job_status ON job_runs(job_id, status);
+CREATE INDEX ix_job_runs_running
+   ON job_runs(job_id, scheduled_for, status, start_time);
 CREATE UNIQUE INDEX uix_job_sched_attempt
    ON job_runs(job_id, scheduled_for, attempt_number);
+CREATE INDEX ix_job_runs_status ON job_runs(status);
 
 
 ALTER TABLE jobs ADD CONSTRAINT pk_jobs
