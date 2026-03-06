@@ -12,6 +12,15 @@ CREATE INDEX ix_job_runs_running
 CREATE UNIQUE INDEX uix_job_sched_attempt
    ON job_runs(job_id, scheduled_for, attempt_number);
 CREATE INDEX ix_job_runs_status ON job_runs(status);
+CREATE UNIQUE INDEX uix_job_runs_one_active_per_execution
+   ON job_runs (
+      job_id,
+      scheduled_for,
+      CASE
+         WHEN status IN ('RUNNING', 'SUCCESS', 'ABORTED') THEN 1
+         ELSE NULL
+      END
+   );
 
 
 ALTER TABLE jobs ADD CONSTRAINT pk_jobs
