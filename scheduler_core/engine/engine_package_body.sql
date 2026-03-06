@@ -63,8 +63,13 @@ create or replace package body engine_package as
          from job_runs r
          where r.job_id = j.job_id
          and r.scheduled_for = j.next_run_date
-         and r.status = 'RUNNING'
-         and r.start_time + numtodsinterval(c_timeout_sec, 'SECOND') > systimestamp
+         and (
+            r.status in ('SUCCESS', 'ABORTED')
+            or (
+               r.status = 'RUNNING'
+               and r.start_time + numtodsinterval(c_timeout_sec, 'SECOND') > systimestamp
+            )
+         )
       )
       order by j.next_run_date asc
       fetch first 1 rows only
