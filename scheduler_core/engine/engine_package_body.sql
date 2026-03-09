@@ -405,6 +405,46 @@ create or replace package body engine_package as
          );
    end;
 
+   /**
+    * Executes the business logic for a given job.
+    *
+    * This procedure acts as a thin dispatcher: it looks up the registered handler
+    * for the provided job_id and executes it. Only exceptions raised by the
+    * handler itself are propagated to the scheduler; any internal lookup or
+    * execution errors are swallowed to avoid false FAILED statuses.
+    *
+    * @param p_job_id  The identifier of the job to execute.
+    */
+   procedure execute_business_logic(p_job_id in jobs.job_id%type) is
+      -- Variable to hold the handler (procedure) name for the job
+      v_handler_name jobs.procedure_name%type;
+   begin
+      -- Fetch the handler name for the given job_id from the jobs table
+      begin
+         select procedure_name
+         into v_handler_name
+         from jobs
+         where job_id = p_job_id;
+
+      exception
+         when no_data_found then
+            -- Job does not exist or was deleted. This is an internal scheduler issue,
+            -- not a business failure. Log and return without raising an error.
+            dbms_output.put_line('Scheduler internal warning: job_id ' || p_job_id || ' not found');
+            return;
+      end;
+
+
+      -- Execute the handler dynamically
+      -- The handler itself follows the contract: procedure handler_name(p_job_id number);
+      -- Any exception raised here will propagate to execute_due_jobs and mark the job as FAILED.
+      execute immediate 'begin ' || v_handler_name || '(:1); end;' using p_job_id;
+
+      -- Note:
+      -- No explicit exception handling here: any handler exception will bubble up.
+      -- Scheduler internal errors are caught above, so the scheduler is not misled.
+   end;
+
    -- Public procedure defined in engine_package_spec.sql
    procedure execute_due_jobs is
       v_start_time timestamp;
@@ -465,7 +505,7 @@ create or replace package body engine_package as
 
          -- Execute business logic (placeholder)
          begin
-            execute_business_logic;
+            execute_business_logic(v_job.job_id);
 
             -- SUCCESS branch
             mark_job_as_success(v_run_id);
