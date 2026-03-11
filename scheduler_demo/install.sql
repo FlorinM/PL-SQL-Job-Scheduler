@@ -30,6 +30,12 @@ CONNECT SCHED_DEMO/sched_demo_password@localhost:1521/XEPDB1
 PROMPT Running scheduler_demo/schema/demo.sql...
 @@schema/demo.sql
 
+PROMPT Running demo_package_spec.sql...
+@@business_logic/demo_package_spec.sql
+
+PROMPT Running demo_package_body.sql...
+@@business_logic/demo_package_body.sql
+
 PROMPT =====================================================
 PROMPT Scheduler Demo installation completed
 PROMPT =====================================================
