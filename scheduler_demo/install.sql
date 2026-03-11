@@ -36,6 +36,12 @@ PROMPT Running demo_package_spec.sql...
 PROMPT Running demo_package_body.sql...
 @@business_logic/demo_package_body.sql
 
+PROMPT Running demo_handlers_package_spec.sql
+@@handlers/demo_handlers_package_spec.sql
+
+PROMPT Running demo_handlers_package_body.sql
+@@handlers/demo_handlers_package_body.sql
+
 PROMPT =====================================================
 PROMPT Scheduler Demo installation completed
 PROMPT =====================================================
