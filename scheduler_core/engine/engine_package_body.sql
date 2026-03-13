@@ -330,6 +330,39 @@ create or replace package body engine_package as
    end;
 
    /**
+    * Checks whether the specified run_id is still in RUNNING state.
+    *
+    * This function is used by a worker returning from business logic execution to determine
+    * if its assigned run is still active. If the run has been marked as FAILED or SUCCESS
+    * (e.g., due to timeout and retry by another worker), the function returns FALSE.
+    *
+    * @param p_run_id : The identifier of the job run to check.
+    *
+    * @return BOOLEAN : TRUE if the run exists and is currently RUNNING, FALSE otherwise.
+    *
+    * Raises an application error if the query fails due to unexpected reasons
+    * (e.g., database error). An exception will also be raised if the run_id does not exist,
+    * signaling an invariant violation.
+    */
+   function is_current_run_still_running(p_run_id job_runs.run_id%type) return boolean is
+      v_status job_runs.status%type;
+   begin
+      select status into v_status from job_runs where run_id = p_run_id;
+
+      if (v_status = 'RUNNING') then
+         return true;
+      end if;
+      return false;
+
+   exception
+      when others then
+         raise_application_error(
+            -20015,
+            'Failed to select status for run_id = ' || p_run_id || ' in is_current_run_still_running'
+         );
+   end;
+
+   /**
     * Marks a job execution as SUCCESS.
     *
     * Updates the status of the job_run identified by p_run_id to 'SUCCESS'.
@@ -513,15 +546,24 @@ create or replace package body engine_package as
             execute_business_logic(v_job.job_id);
 
             -- SUCCESS branch
-            mark_job_as_success(v_run_id);
-            schedule_next_execution(v_job.job_id);
+            -- Cooperative cancellation pattern:
+            -- Check if the current run is still RUNNING before marking SUCCESS.
+            -- If another worker already marked it as FAILED or SUCCESS, skip updates.
+            if (is_current_run_still_running(v_run_id)) then
+               mark_job_as_success(v_run_id);
+               schedule_next_execution(v_job.job_id);
+               commit;
+            end if;
          exception
             -- FAILED branch
+            -- Cooperative cancellation pattern:
+            -- Only mark as FAILED if the current run is still RUNNING.
             when others then
-                mark_job_as_failed(v_run_id, sqlerrm);
+               if(is_current_run_still_running(v_run_id)) then
+                  mark_job_as_failed(v_run_id, sqlerrm);
+                  commit;
+               end if;
          end;
-
-         commit;
       end loop;
    end;
 
