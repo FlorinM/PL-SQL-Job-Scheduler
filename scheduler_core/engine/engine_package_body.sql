@@ -447,8 +447,8 @@ create or replace package body engine_package as
 
    -- Public procedure defined in engine_package_spec.sql
    procedure execute_due_jobs is
-      v_start_time timestamp;
-      v_deadline timestamp;
+      v_start_time timestamp with time zone;
+      v_deadline timestamp with time zone;
       v_job jobs%rowtype;
       v_scheduled_for job_runs.scheduled_for%type;
       v_stale_run_id job_runs.run_id%type;
