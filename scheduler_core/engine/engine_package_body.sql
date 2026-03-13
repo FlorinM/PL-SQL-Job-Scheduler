@@ -324,11 +324,6 @@ create or replace package body engine_package as
          );
    end;
 
-   procedure execute_business_logic is
-   begin
-      null;
-   end;
-
    /**
     * Checks whether the specified run_id is still in RUNNING state.
     *
