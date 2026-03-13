@@ -52,6 +52,7 @@ create or replace package body engine_package as
     */
    function claim_next_job return jobs%rowtype is
       v_job jobs%rowtype;
+      v_job_id jobs.job_id%type;
    begin
       -- Select eligible job
       select j.* into v_job
@@ -72,7 +73,11 @@ create or replace package body engine_package as
          )
       )
       order by j.next_run_date asc
-      fetch first 1 rows only
+      fetch first 1 rows only;
+
+      -- Lock the job
+      select job_id into v_job_id from jobs
+      where job_id = v_job.job_id
       for update skip locked;
 
       return v_job;
