@@ -540,15 +540,6 @@ create or replace package body engine_package as
          begin
             execute_business_logic(v_job.job_id);
 
-            -- SUCCESS branch
-            -- Cooperative cancellation pattern:
-            -- Check if the current run is still RUNNING before marking SUCCESS.
-            -- If another worker already marked it as FAILED or SUCCESS, skip updates.
-            if (is_current_run_still_running(v_run_id)) then
-               mark_job_as_success(v_run_id);
-               schedule_next_execution(v_job.job_id);
-               commit;
-            end if;
          exception
             -- FAILED branch
             -- Cooperative cancellation pattern:
@@ -558,7 +549,20 @@ create or replace package body engine_package as
                   mark_job_as_failed(v_run_id, sqlerrm);
                   commit;
                end if;
+
+               -- Skip SUCCESS branch
+               continue;
          end;
+
+         -- SUCCESS branch
+         -- Cooperative cancellation pattern:
+         -- Check if the current run is still RUNNING before marking SUCCESS.
+         -- If another worker already marked it as FAILED or SUCCESS, skip updates.
+         if (is_current_run_still_running(v_run_id)) then
+            mark_job_as_success(v_run_id);
+            schedule_next_execution(v_job.job_id);
+            commit;
+         end if;
       end loop;
    end;
 
