@@ -43,7 +43,7 @@ PROMPT Running demo_handlers_package_body.sql
 @@handlers/demo_handlers_package_body.sql
 
 PROMPT Granting scheduler access to handlers...
-GRANT EXECUTE ON demo_handlers_package TO sched_sys;
+GRANT EXECUTE ON sched_demo.demo_handlers_package TO sched_sys;
 
 PROMPT =====================================================
 PROMPT Scheduler Demo installation completed
