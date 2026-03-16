@@ -25,11 +25,9 @@ begin
    -- Create scheduler job
    dbms_scheduler.create_job(
       job_name        => 'SCHED_ENGINE_JOB',
-      -- job_type        => 'STORED_PROCEDURE',
-      -- job_action      => 'ENGINE_PACKAGE.EXECUTE_DUE_JOBS',
-      job_type        => 'PLSQL_BLOCK',
-      job_action      => 'BEGIN NULL; END;',
-      start_date      => SYSTIMESTAMP,
+      job_type        => 'STORED_PROCEDURE',
+      job_action      => 'SCHED_SYS.ENGINE_PACKAGE.EXECUTE_DUE_JOBS',
+      start_date      => SYSTIMESTAMP + INTERVAL '1' SECOND,
       repeat_interval => 'FREQ=SECONDLY;INTERVAL=10',
       enabled         => FALSE,
       auto_drop       => FALSE,
@@ -48,6 +46,16 @@ begin
       name => 'SCHED_ENGINE_JOB'
    );
 
+   -- Wake-up dbms_scheduler
+   begin
+      dbms_scheduler.run_job('SCHED_ENGINE_JOB', FALSE);
+   exception
+      when others then
+         raise_application_error(
+            -20040,
+            'Failed to run the job SCHED_ENGINE_JOB'
+         );
+   end;
 end;
 /
 
