@@ -1,8 +1,9 @@
 -- =====================================================
 -- File: install.sql
 -- Purpose: Installation entry point for Scheduler Core
--- Currently runs only user creation script
 -- =====================================================
+
+@@scheduler_core/config/config_install.sql
 
 PROMPT =====================================================
 PROMPT Starting Scheduler Core installation
@@ -14,8 +15,8 @@ SHOW CON_NAME;
 PROMPT Running create_user.sql...
 @@scheduler_core/schema/create_user.sql
 
-PROMPT Connecting as SCHED_SYS
-CONNECT SCHED_SYS/sched_sys_password@localhost:1521/XEPDB1
+PROMPT Connecting as &&SCHED_USER
+CONNECT &&SCHED_USER/&&SCHED_PASSWORD@&&DB_HOST:&&DB_PORT/&&PDB_NAME
 
 PROMPT Running tables.sql...
 @@scheduler_core/schema/tables.sql
@@ -45,5 +46,5 @@ PROMPT Running create_dbms_scheduler_jobs.sql...
 @@scheduler_core/engine/create_dbms_scheduler_jobs.sql
 
 PROMPT =====================================================
-PROMPT Scheduler Core installation completed (current stage)
+PROMPT Scheduler Core installation completed
 PROMPT =====================================================
