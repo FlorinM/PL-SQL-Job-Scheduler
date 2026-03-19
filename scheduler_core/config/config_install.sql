@@ -1,5 +1,5 @@
 -- ========================
--- File: config_user.sql
+-- File: config_install.sql
 -- Purpose: Configuration variables for scheduler installation
 -- Edit values before running install scripts
 -- ========================
