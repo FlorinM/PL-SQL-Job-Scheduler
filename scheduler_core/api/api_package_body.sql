@@ -89,6 +89,8 @@ create or replace package body api_package as
          systimestamp,
          sys_context('USERENV', 'SESSION_USER')
       );
+
+      commit;
    exception
       when DUP_VAL_ON_INDEX then
          if (SQLERRM like '%u_job_name%') then
