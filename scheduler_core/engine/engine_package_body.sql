@@ -72,12 +72,7 @@ create or replace package body engine_package as
             )
          )
       )
-      order by j.next_run_date asc
-      fetch first 1 rows only;
-
-      -- Lock the job
-      select job_id into v_job_id from jobs
-      where job_id = v_job.job_id
+      and rownum = 1
       for update skip locked;
 
       return v_job;
