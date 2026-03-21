@@ -173,11 +173,13 @@ The installation script will:
 
 ```sql```
 @scheduler_demo/install.sql
+
 4. Disconnect and connect as the scheduler user (not the demo user)
 5. Run:
 
 ```sql```
 @scheduler_demo/register_jobs.sql
+
 6. Query the `jobs` and `job_runs` tables to observe execution results
 
 ---
