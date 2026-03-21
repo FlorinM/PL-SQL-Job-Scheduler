@@ -17,6 +17,18 @@
 create or replace package body engine_package as
 
    /**
+    * ENGINE CONFIGURATION
+    *
+    * This section documents the runtime configuration values used by the engine
+    * to control worker execution, scheduling, and job lifecycle management.
+    *
+    * Values are retrieved from CONFIG_PACKAGE and may change between executions,
+    * but are assumed to be consistent during a single worker run.
+    *
+    * ----------------------------------
+    *
+    * BUDGET (config_package.get_budget)
+    *
     * Maximum lifetime (in seconds) allocated to a single worker
     * invocation of execute_due_jobs.
     *
@@ -30,16 +42,16 @@ create or replace package body engine_package as
     *
     * Acts as a safety mechanism to avoid long-running or runaway
     * worker sessions.
-    */
-   c_budget_time_sec constant pls_integer := 9;
-
-   /**
+    *
+    * ----------------------------------
+    *
+    * TIMEOUT (config_package.get_timeout)
+    *
     * Maximum allowed execution time (in seconds) for a worker to complete a single job.
     *
     * If a job remains in RUNNING state longer than this, it is considered stale
     * and can be reclaimed by another worker.
     */
-   c_timeout_sec constant pls_integer := 3;
 
    /**
     * Claims the next eligible job for execution.
@@ -68,7 +80,7 @@ create or replace package body engine_package as
             r.status in ('SUCCESS', 'ABORTED')
             or (
                r.status = 'RUNNING'
-               and r.start_time + numtodsinterval(c_timeout_sec, 'SECOND') > systimestamp
+               and r.start_time + numtodsinterval(config_package.get_timeout, 'SECOND') > systimestamp
             )
          )
       )
@@ -85,7 +97,7 @@ create or replace package body engine_package as
    /**
     * Checks whether a scheduled execution has a stale RUNNING attempt.
     *
-    * A RUNNING attempt is considered stale if start_time + c_timeout_sec
+    * A RUNNING attempt is considered stale if start_time + config_package.get_timeout
     * is less than or equal to the current timestamp.
     *
     * @param p_job_id         Identifier of the job.
@@ -108,7 +120,7 @@ create or replace package body engine_package as
       where job_id = p_job_id
       and scheduled_for = p_scheduled_for
       and status = 'RUNNING'
-      and start_time + numtodsinterval(c_timeout_sec, 'SECOND') <= systimestamp;
+      and start_time + numtodsinterval(config_package.get_timeout, 'SECOND') <= systimestamp;
 
       return v_run_id;
 
@@ -480,7 +492,7 @@ create or replace package body engine_package as
       v_run_id job_runs.run_id%type;
    begin
       v_start_time := systimestamp;
-      v_deadline := v_start_time + numtodsinterval(c_budget_time_sec, 'SECOND');
+      v_deadline := v_start_time + numtodsinterval(config_package.get_budget, 'SECOND');
 
       loop
          -- Exit loop when budget time exhausted

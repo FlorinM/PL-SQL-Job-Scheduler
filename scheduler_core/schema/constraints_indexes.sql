@@ -18,6 +18,8 @@ ALTER TABLE jobs ADD CONSTRAINT pk_jobs
    PRIMARY KEY (job_id) USING INDEX uix_job_id;
 ALTER TABLE job_runs ADD CONSTRAINT pk_job_runs
    PRIMARY KEY (run_id) USING INDEX uix_run_id;
+ALTER TABLE configs ADD CONSTRAINT pk_configs
+   PRIMARY KEY (name);
 ALTER TABLE job_runs ADD CONSTRAINT fk_job_runs_jobs
    FOREIGN KEY (job_id) REFERENCES jobs(job_id);
 
@@ -35,3 +37,5 @@ ALTER TABLE jobs ADD CONSTRAINT ch_max_attempts
    CHECK (max_attempts >= 1);
 ALTER TABLE job_runs ADD CONSTRAINT ch_attempt_number
    CHECK (attempt_number >= 1);
+ALTER TABLE configs ADD CONSTRAINT ch_value
+   CHECK (value > 0);

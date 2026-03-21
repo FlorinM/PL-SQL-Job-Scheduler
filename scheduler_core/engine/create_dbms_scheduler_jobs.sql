@@ -8,38 +8,47 @@
 PROMPT Creating scaler procedure...
 
 create or replace procedure scale_engine_workers is
-    v_backlog number;
-    v_workers number;
+   v_backlog number;
+   v_workers number;
 
-    c_jobs_per_worker constant number := 10;
-    c_max_workers constant number := 20;
+   c_jobs_per_worker constant number := config_package.get_jobs_per_worker;
+   c_max_workers constant number := config_package.get_max_workers;
 begin
-    ----------------------------------------------------------------
-    -- backlog
-    ----------------------------------------------------------------
-    select count(*)
-    into v_backlog
-    from jobs j
-    where j.enabled_flag = 'Y'
-    and j.next_run_date <= systimestamp;
 
-    ----------------------------------------------------------------
-    -- workers
-    ----------------------------------------------------------------
-    v_workers := ceil(v_backlog / c_jobs_per_worker);
+   -- Validate config
+   if (c_jobs_per_worker < 1) then
+      raise_application_error(-20090, 'jobs_per_worker must be >= 1');
+   end if;
 
-    if (v_workers < 1) then
-        v_workers := 1;
-    end if;
+   if (c_max_workers < 1) then
+      raise_application_error(-20091, 'max_workers must be >= 1');
+   end if;
 
-    v_workers := least(v_workers, c_max_workers);
+   -- backlog
+   select count(*)
+   into v_backlog
+   from jobs j
+   where j.enabled_flag = 'Y'
+   and j.next_run_date <= systimestamp;
 
-    ----------------------------------------------------------------
-    -- launch workers
-    ----------------------------------------------------------------
-    for i in 1 .. v_workers loop
-        dbms_scheduler.run_job('SCHED_ENGINE_JOB', FALSE);
-    end loop;
+   -- no work => no workers
+   if (v_backlog = 0) then
+      return;
+   end if;
+
+   -- workers
+   v_workers := ceil(v_backlog / c_jobs_per_worker);
+
+   -- enforce minimum 1 worker
+   v_workers := greatest(v_workers, 1);
+
+   -- cap at max_workers
+   v_workers := least(v_workers, c_max_workers);
+
+   -- launch workers
+   for i in 1 .. v_workers loop
+      dbms_scheduler.run_job('SCHED_ENGINE_JOB', FALSE);
+   end loop;
 
 end;
 /
@@ -103,7 +112,7 @@ begin
       job_type        => 'STORED_PROCEDURE',
       job_action      => 'SCALE_ENGINE_WORKERS',
       start_date      => systimestamp + INTERVAL '1' SECOND,
-      repeat_interval => 'FREQ=SECONDLY;INTERVAL=10',
+      repeat_interval => 'FREQ=SECONDLY;INTERVAL=28',
       enabled         => TRUE,
       auto_drop       => FALSE,
       comments        => 'Controls number of scheduler workers'
