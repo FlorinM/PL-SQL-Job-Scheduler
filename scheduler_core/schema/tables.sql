@@ -22,6 +22,5 @@ CREATE TABLE job_runs (
    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
    end_time TIMESTAMP WITH TIME ZONE,
    error_message CLOB,
-   attempt_number NUMBER NOT NULL,
-   created_at TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP NOT NULL
+   attempt_number NUMBER NOT NULL
 );

@@ -209,8 +209,7 @@ create or replace package body engine_package as
          start_time,
          end_time,
          error_message,
-         attempt_number,
-         created_at
+         attempt_number
       ) values (
          job_runs_seq.nextval,
          p_job_id,
@@ -219,8 +218,7 @@ create or replace package body engine_package as
          systimestamp,
          systimestamp,
          'Attempt number exceeded max_attempts',
-         p_attempt_number,
-         systimestamp
+         p_attempt_number
       );
 
    exception
@@ -260,8 +258,7 @@ create or replace package body engine_package as
          start_time,
          end_time,
          error_message,
-         attempt_number,
-         created_at
+         attempt_number
       ) values (
          job_runs_seq.nextval,
          p_job_id,
@@ -270,8 +267,7 @@ create or replace package body engine_package as
          systimestamp,
          null,
          null,
-         p_attempt_number,
-         systimestamp
+         p_attempt_number
       ) returning run_id into v_run_id;
 
       return v_run_id;
