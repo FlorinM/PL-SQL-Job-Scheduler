@@ -10,7 +10,7 @@ The purpose of this project is to demonstrate advanced database engineering conc
 - Row-level locking
 - Concurrency handling
 - `SELECT FOR UPDATE SKIP LOCKED`
-- Idempotent job execution
+- At-least-once job execution semantics
 - Failure recovery
 - Retry mechanisms
 - Operational traceability
@@ -85,12 +85,31 @@ Concurrency safety is ensured through:
 
 ---
 
+## Execution Guarantees
+
+The scheduler provides **at-least-once execution semantics**.
+
+Under normal operating conditions:
+
+- A job instance is executed once
+- Concurrency is controlled via row-level locking and `SKIP LOCKED`
+- Only one worker can claim and execute a job at a given moment
+
+In edge cases:
+
+- If a worker exceeds the configured timeout, another worker may reclaim and execute the same job instance
+- This can lead to **duplicate execution of business logic**
+
+The scheduler guarantees consistency at the execution tracking level (job logs), but does not enforce idempotency of business side effects.
+
+---
+
 ## Concurrency and Reliability
 
 The scheduler ensures:
 
-- No double execution of the same job instance
-- Safe parallelism
+- Safe parallel execution
+- Controlled concurrency via locking
 - Crash recovery capability
 - Retry after failure
 - Execution traceability
@@ -99,14 +118,41 @@ If a worker crashes during execution:
 
 - The execution record remains in a recoverable state
 - The job can be retried based on retry policy
-- No other worker can execute the same locked job concurrently
+
+If a worker exceeds the configured timeout:
+
+- The job may be reclaimed and executed again
+- Duplicate execution is possible but limited to such edge cases
+
+---
+
+## Idempotency Considerations
+
+The scheduler does not enforce idempotency of business logic.
+
+However:
+
+- Each execution is associated with a unique context (`p_job_id`)
+- Business procedures may optionally use this identifier as an idempotency key
+
+This allows consumers to implement protection against duplicate side effects where required (e.g., external calls, inserts, integrations).
+
+---
+
+## Limitations
+
+- The scheduler is optimized for **short-running jobs**
+- Long-running jobs may exceed the configured timeout and lead to duplicate execution
+- The scheduler does not control or enforce side effects produced by business logic
+- Exactly-once execution is not guaranteed without cooperation from the business layer
 
 ---
 
 ## Installation
 
-1. Connect to the target PDB (e.g., `XEPDB1`).
-2. Run:
+1. Edit `scheduler_core/config/config_install.sql` (PDB, USER, PASSWORD, etc.)
+2. Connect to the target PDB as `SYSDBA`
+3. Run:
 
 ```sql```
 @install.sql
@@ -114,11 +160,25 @@ If a worker crashes during execution:
 The installation script will:
 
 - Create the scheduler schema
+- Grant necessary privileges
 - Create required tables and indexes
 - Create sequences
-- Create API and engine packages
+- Create API, engine, and config packages
 - Create dispatcher workers via `DBMS_SCHEDULER`
-- Grant necessary privileges
+
+### (Optional) Install Demo
+1. Edit `scheduler_demo/config/config_install.sql`
+2. Connect to the target PDB as `SYSDBA`
+3. Run:
+
+```sql```
+@scheduler_demo/install.sql
+4. Disconnect and connect as the scheduler user (not the demo user)
+5. Run:
+
+```sql```
+@scheduler_demo/register_jobs.sql
+6. Query the `jobs` and `job_runs` tables to observe execution results
 
 ---
 
@@ -128,14 +188,72 @@ Business schemas interact with the scheduler exclusively through the public API 
 
 - To register a job:
 ```sql```
-   sched_api_pkg.register_job(...);
+   api_package.register_job(...);
 
-- Business procedures must follow a minimal contract:
-   procedure job_name(p_job_id number);
+### Handler Contract
+
+Business procedures (handlers) are the execution entry point and may perform any required logic:
+
+`procedure job_name(p_job_id number);`
 
 - The p_job_id acts as an execution context identifier.
-- The business layer may use it to retrieve parameters from its own tables or payload structures.
-- Internal scheduler tables are not exposed to consumer schemas.
+- The handler is responsible for:
+- Retrieving parameters from its own tables or payload structures
+- Invoking other procedures or services
+- Implementing the full business logic
+
+The scheduler does not impose any constraints on internal handler implementation.
+
+### Exception Handling Contract
+
+Execution outcome is determined jointly by the handler and the scheduler:
+
+- The handler defines what constitutes a successful execution
+- The scheduler interprets execution outcome based on exceptions:
+
+#### Rules
+- If the handler completes without raising an exception → the job is considered SUCCESS
+- If an exception is raised and propagates to the scheduler → the job is considered FAILED
+- The handler may explicitly raise exceptions to force a FAILED outcome
+- Exceptions that are caught and fully handled within the handler (i.e. not propagated) result in SUCCESS
+
+### Responsibility Split
+
+#### Handler responsibility:
+- Define business semantics of success and failure
+- Execute all business logic
+- Optionally signal failure via exceptions
+
+#### Scheduler responsibility:
+- Execute handlers
+- Capture exceptions
+- Map execution outcome to SUCCESS or FAILED
+- Maintain execution state and tracking
+
+### Important Note
+
+The scheduler treats:
+- Any propagated error as FAILED
+- Any clean completion (no propagated errors) as SUCCESS
+
+This contract ensures clear separation of concerns while allowing the handler full control over business semantics and execution outcome.
+
+---
+
+## Security and Permissions
+
+The scheduler executes business handlers dynamically from within its own schema.
+
+As a result, the **scheduler user must be granted execute privileges on the business handler packages or procedures**.
+
+### Required Privileges
+
+- The scheduler user must have `EXECUTE` privileges on all handler packages or procedures that are invoked by the scheduler.
+
+Example:
+
+```sql```
+GRANT EXECUTE ON business_schema.job_handlers_pkg TO scheduler_user;
 
 ---
 
