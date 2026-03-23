@@ -23,8 +23,9 @@ The system is divided into two logical layers:
 
 ### 2.1 Infrastructure Layer (Scheduler Core)
 
-- Owned by the SCHED_SYS schema.
-- Responsibilities:
+Owned by the scheduler's schema.
+Responsibilities:
+
 - Job registration
 - Job metadata storage
 - Execution tracking
@@ -35,10 +36,12 @@ The system is divided into two logical layers:
 
 Main components:
 
-- sched_api_pkg
-- sched_engine_pkg
+- api_package
+- engine_package
+- config_package
 - jobs table
 - job_runs table
+- configs table
 - Oracle DBMS_SCHEDULER job
 
 ### 2.2 Business Layer (External Consumers)
@@ -46,7 +49,7 @@ Main components:
 Business schemas:
 
 - Define business procedures
-- Register jobs via sched_api_pkg
+- Register jobs via scheduler's api_package
 - Remain independent from scheduler internals
 
 Business procedures must follow a minimal contract:
@@ -123,7 +126,17 @@ Represents individual execution instances.
 | end_time       | Execution end          |
 | error_message  | Error details (if any) |
 | attempt_number | Retry attempt counter  |
-| created_at     | Insert timestamp       |
+
+### 4.3 configs (Runtime Configuration)
+
+Represents configuration values.
+
+| Column         | Purpose                |
+| -------------- |----------------------- |
+| name           | Primary key            |
+| value          | Configuration data     |
+| created_at     | Creation timestamp     |
+| updated_at     | Update timestamp       |
 
 ## 5. Execution Lifecycle (State Machine)
 
@@ -139,10 +152,10 @@ Valid states:
 Lifecycle Transitions:
 
 ```
-CREATE RUN  ───────────────► RUNNING
-RUNNING     ───────────────► SUCCESS
-RUNNING     ───────────────► FAILED
-RUNNING     ───────────────► ABORTED
+CREATE RUN             ───────────────► RUNNING
+RUNNING                ───────────────► SUCCESS
+RUNNING                ───────────────► FAILED
+MAX ATTEMPTS EXCEEDED  ───────────────► ABORTED
 ```
 
 Rules:
@@ -165,13 +178,15 @@ SELECT *
 FROM jobs
 WHERE enabled_flag = 'Y'
 AND next_run_date <= SYSTIMESTAMP
+AND NOT EXISTS (...)
+AMD ROWNUM = 1
 FOR UPDATE SKIP LOCKED;
 ```
 
 Properties:
 
 - Row-level locking
-- No double execution
+- No double execution under timeout
 - Safe horizontal scaling
 - No blocking between workers
 
@@ -193,14 +208,13 @@ A run is considered stale if:
 
 ```
 status = 'RUNNING'
-AND end_time IS NULL
-AND start_time < (current_time - timeout_threshold)
+AND start_time < (current_time - timeout)
 ```
 
 Recovery process:
 
 - 1. Lock stale run
-- 2. Mark as ABORTED
+- 2. Mark as FAILED
 - 3. Create new run (retry)
 - 4. Continue execution
 
@@ -211,23 +225,10 @@ No execution record is ever deleted or overwritten.
 - Strict separation of concerns
 - No business logic inside scheduler
 - Explicit execution state
-- Deterministic lifecycle transitions
 - Safe parallelism
-- Idempotent execution model
 - Infrastructure-first design
 
-## 9. Future Extensions
-
-- Possible enhancements:
-- Retry policies (fixed / exponential backoff)
-- Max retry limits
-- Dead-letter handling
-- Metrics and monitoring views
-- Execution statistics aggregation
-- Job prioritization
-- Pause/resume functionality
-
-## 10. Summary
+## 9. Summary
 
 This scheduler is not a simple cron clone.
 
@@ -239,4 +240,3 @@ It is a database-native execution engine that:
 - Is fully decoupled from business schemas
 - Can scale horizontally using multiple workers
 
-The architecture prioritizes clarity, determinism, and operational safety.
