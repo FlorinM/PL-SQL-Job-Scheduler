@@ -30,17 +30,30 @@ create or replace package api_package as
    /**
     * Record type returned by get_job_info.
     *
-    * Represents high-level job metadata and its latest known runtime status.
+    * Represents the latest execution snapshot of a job, based on the most recent
+    * (scheduled_for, attempt_number) combination.
     *
-    * interval_seconds  - Configured execution frequency of the job.
-    * next_run_date     - Next scheduled execution timestamp.
-    * status            - Status of the most recent execution instance
-    *                     (RUNNING, SUCCESS, FAILED, ABORTED).
+    * Provides both identification and runtime execution details for observability
+    * and debugging purposes.
+    *
+    * job_name        - Logical job identifier.
+    * run_id          - Unique identifier of the execution instance.
+    * scheduled_for   - Timestamp representing the scheduled execution slot.
+    * attempt_number  - Retry attempt number for the given scheduled execution.
+    * start_time      - Timestamp when execution started.
+    * end_time        - Timestamp when execution finished (NULL if still running).
+    * status          - Execution status (RUNNING, SUCCESS, FAILED, ABORTED).
+    * error_message   - Error message captured on failure (NULL if SUCCESS or RUNNING).
     */
    type t_job_info is record (
-      interval_seconds jobs.interval_seconds%type,
-      next_run_date jobs.next_run_date%type,
-      status job_runs.status%type
+      job_name jobs.job_name%type,
+      run_id job_runs.run_id%type,
+      scheduled_for job_runs.scheduled_for%type,
+      attempt_number job_runs.attempt_number%type,
+      start_time job_runs.start_time%type,
+      end_time job_runs.end_time%type,
+      status job_runs.status%type,
+      error_message job_runs.error_message%type
    );
 
    /**
